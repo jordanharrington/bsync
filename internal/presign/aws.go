@@ -51,11 +51,13 @@ func (p *awsPresigner) PresignPut(ctx context.Context, bucket, key string, opts 
 	}
 
 	return v1.PresignedUrl{
-		Provider: v1.ProviderAWS,
-		Bucket:   bucket,
-		Key:      key,
-		URL:      out.URL,
-		Headers:  flat,
+		TargetRef: v1.TargetRef{
+			Provider: v1.ProviderAWS,
+			Bucket:   bucket,
+			Key:      key,
+		},
+		URL:     out.URL,
+		Headers: flat,
 	}, nil
 }
 
@@ -84,10 +86,12 @@ func (p *awsPresigner) PresignGet(ctx context.Context, bucket, key string, expir
 	}
 
 	return v1.PresignedUrl{
-		Provider: v1.ProviderAWS,
-		Bucket:   bucket,
-		Key:      key,
-		URL:      out.URL,
-		Headers:  flat,
+		TargetRef: v1.TargetRef{
+			Provider: v1.ProviderAWS,
+			Bucket:   bucket,
+			Key:      key,
+		},
+		URL:     out.URL,
+		Headers: flat,
 	}, nil
 }

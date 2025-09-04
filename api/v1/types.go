@@ -22,11 +22,9 @@ type PutObjectRequest struct {
 }
 
 type PresignedUrl struct {
-	Provider Provider          `json:"provider"`
-	Bucket   string            `json:"bucket"`
-	Key      string            `json:"key"`
-	URL      string            `json:"url"`
-	Headers  map[string]string `json:"headers,omitempty"`
+	TargetRef TargetRef         `json:"target"`
+	URL       string            `json:"url"`
+	Headers   map[string]string `json:"headers,omitempty"`
 }
 
 type PutObjectResponse struct {

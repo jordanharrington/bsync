@@ -9,7 +9,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  IMAGE_NAME: aws-bsync-gateway
+  IMAGE_NAME: bsync-gateway
 
 jobs:
   build-and-push:
@@ -30,7 +30,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::699041963363:role/aws-playground-github-actions-runner-ecr-role
+          role-to-assume: arn:aws:iam::699041963363:role/bsync-github-actions-runner-ecr-role
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
