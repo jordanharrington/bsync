@@ -1,0 +1,56 @@
+name: Publish to ECR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  IMAGE_NAME: aws-bsync-gateway
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get Image Version
+        id: semver
+        shell: bash
+        run: |
+          ls -R
+          # shellcheck disable=SC1091
+          source ./version.sh
+          echo "version=$AWS_GATEWAY_SEMVER" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::699041963363:role/aws-playground-github-actions-runner-ecr-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./images/aws-gateway.Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
