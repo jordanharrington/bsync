@@ -23,7 +23,7 @@ func NewS3Presigner(ctx context.Context) (Presigner, error) {
 	return &awsPresigner{client: c, signer: s3.NewPresignClient(c)}, nil
 }
 
-func (p *awsPresigner) PresignPut(ctx context.Context, bucket, key string, opts PutOptions) (v1.PresignedUrl, error) {
+func (p *awsPresigner) PresignPut(ctx context.Context, bucket, key string, opts PutOptions) (*v1.PresignedUrl, error) {
 	in := &s3.PutObjectInput{
 		Bucket:      &bucket,
 		Key:         &key,
@@ -40,7 +40,7 @@ func (p *awsPresigner) PresignPut(ctx context.Context, bucket, key string, opts 
 
 	out, err := p.signer.PresignPutObject(ctx, in, s3.WithPresignExpires(opts.TTL))
 	if err != nil {
-		return v1.PresignedUrl{}, err
+		return nil, err
 	}
 
 	flat := map[string]string{}
@@ -50,7 +50,7 @@ func (p *awsPresigner) PresignPut(ctx context.Context, bucket, key string, opts 
 		}
 	}
 
-	return v1.PresignedUrl{
+	return &v1.PresignedUrl{
 		TargetRef: v1.TargetRef{
 			Provider: v1.ProviderAWS,
 			Bucket:   bucket,
@@ -61,7 +61,7 @@ func (p *awsPresigner) PresignPut(ctx context.Context, bucket, key string, opts 
 	}, nil
 }
 
-func (p *awsPresigner) PresignGet(ctx context.Context, bucket, key string, expires time.Duration) (v1.PresignedUrl, error) {
+func (p *awsPresigner) PresignGet(ctx context.Context, bucket, key string, expires time.Duration) (*v1.PresignedUrl, error) {
 	if expires <= 0 {
 		expires = 15 * time.Minute
 	}
@@ -75,7 +75,7 @@ func (p *awsPresigner) PresignGet(ctx context.Context, bucket, key string, expir
 		po.Expires = expires
 	})
 	if err != nil {
-		return v1.PresignedUrl{}, err
+		return nil, err
 	}
 
 	flat := make(map[string]string, len(out.SignedHeader))
@@ -85,7 +85,7 @@ func (p *awsPresigner) PresignGet(ctx context.Context, bucket, key string, expir
 		}
 	}
 
-	return v1.PresignedUrl{
+	return &v1.PresignedUrl{
 		TargetRef: v1.TargetRef{
 			Provider: v1.ProviderAWS,
 			Bucket:   bucket,

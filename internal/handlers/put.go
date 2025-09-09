@@ -45,7 +45,7 @@ func (h *Handler) HandlePutObject(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		urls = append(urls, url)
+		urls = append(urls, *url)
 	}
 
 	_ = json.NewEncoder(w).Encode(v1.PutObjectResponse{
