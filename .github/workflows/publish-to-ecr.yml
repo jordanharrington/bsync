@@ -22,8 +22,6 @@ jobs:
         id: semver
         shell: bash
         run: |
-          ls -R
-          # shellcheck disable=SC1091
           source ./version.sh
           echo "version=$AWS_GATEWAY_SEMVER" >> "$GITHUB_OUTPUT"
 
@@ -50,7 +48,6 @@ jobs:
           file: ./images/aws-gateway.Dockerfile
           push: true
           platforms: linux/amd64
+          provenance: false
           tags: |
             ${{ steps.ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
