@@ -11,12 +11,12 @@ import (
 )
 
 func main() {
-	h, err := server.NewHandler(context.Background(), v1.ProviderAWS)
+	r, err := server.NewRouter(context.Background(), v1.ProviderAWS)
 	if err != nil {
-		log.Fatalf("failed to create handler: %v", err)
+		log.Fatalf("failed to create router: %v", err)
 	}
 
-	adapter := gorillamux.New(server.NewRouter(h))
+	adapter := gorillamux.New(r)
 	lambda.Start(func(ctx context.Context, req core.SwitchableAPIGatewayRequest) (interface{}, error) {
 		return adapter.ProxyWithContext(ctx, req)
 	})

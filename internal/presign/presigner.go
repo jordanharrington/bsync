@@ -11,6 +11,7 @@ type PutOptions struct {
 	ContentType string
 	Metadata    map[string]string
 	TTL         time.Duration
+	Encryption  *v1.EncryptionSpec
 }
 
 // PutOption mutates a PutOptions.
@@ -42,6 +43,11 @@ func WithMetadata(md map[string]string) PutOption {
 // WithTTL sets the presign TTL.
 func WithTTL(d time.Duration) PutOption {
 	return func(o *PutOptions) { o.TTL = d }
+}
+
+// WithEncryption sets the v1.EncryptionSpec
+func WithEncryption(enc *v1.EncryptionSpec) PutOption {
+	return func(o *PutOptions) { o.Encryption = enc }
 }
 
 type Presigner interface {

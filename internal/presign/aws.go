@@ -2,15 +2,21 @@ package presign
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/samber/lo"
+
 	v1 "github.com/jordanharrington/bsync/api/v1"
 )
 
-type awsPresigner struct {
-	client *s3.Client
-	signer *s3.PresignClient
+type s3PresignAPI interface {
+	PresignPutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
+}
+
+type s3Presigner struct {
+	signer s3PresignAPI
 }
 
 func NewS3Presigner(ctx context.Context) (Presigner, error) {
@@ -18,11 +24,11 @@ func NewS3Presigner(ctx context.Context) (Presigner, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := s3.NewFromConfig(cfg)
-	return &awsPresigner{client: c, signer: s3.NewPresignClient(c)}, nil
+	client := s3.NewFromConfig(cfg)
+	return &s3Presigner{signer: s3.NewPresignClient(client)}, nil
 }
 
-func (p *awsPresigner) PresignPut(ctx context.Context, bucket, key string, opts PutOptions) (*v1.PresignedUrl, error) {
+func (p *s3Presigner) PresignPut(ctx context.Context, bucket, key string, opts PutOptions) (*v1.PresignedUrl, error) {
 	in := &s3.PutObjectInput{
 		Bucket:      &bucket,
 		Key:         &key,
@@ -30,11 +36,19 @@ func (p *awsPresigner) PresignPut(ctx context.Context, bucket, key string, opts 
 		ACL:         types.ObjectCannedACLPrivate,
 	}
 
-	if len(opts.Metadata) > 0 {
-		in.Metadata = map[string]string{}
-		for k, v := range opts.Metadata {
-			in.Metadata[k] = v
+	if opts.Encryption != nil {
+		switch opts.Encryption.Type {
+		case v1.EncProviderManaged:
+			in.ServerSideEncryption = types.ServerSideEncryptionAes256
+		case v1.EncCustomerManaged:
+			in.ServerSideEncryption = types.ServerSideEncryptionAwsKms
+			in.SSEKMSKeyId = lo.ToPtr(opts.Encryption.KeyRef)
 		}
+	}
+
+	in.Metadata = make(map[string]string, len(opts.Metadata))
+	for k, v := range opts.Metadata {
+		in.Metadata[k] = v
 	}
 
 	out, err := p.signer.PresignPutObject(ctx, in, s3.WithPresignExpires(opts.TTL))
@@ -42,7 +56,7 @@ func (p *awsPresigner) PresignPut(ctx context.Context, bucket, key string, opts 
 		return nil, err
 	}
 
-	flat := map[string]string{}
+	flat := make(map[string]string, len(out.SignedHeader))
 	for k, vals := range out.SignedHeader {
 		if len(vals) > 0 {
 			flat[k] = vals[0]
