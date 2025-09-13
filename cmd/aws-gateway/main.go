@@ -6,13 +6,12 @@ import (
 	"github.com/awslabs/aws-lambda-go-api-proxy/core"
 	"github.com/awslabs/aws-lambda-go-api-proxy/gorillamux"
 	"github.com/jordanharrington/bsync/api/v1"
-	"github.com/jordanharrington/bsync/internal/handlers"
 	"github.com/jordanharrington/bsync/internal/server"
 	"log"
 )
 
 func main() {
-	h, err := handlers.Create(context.Background(), v1.ProviderAWS)
+	h, err := server.NewHandler(context.Background(), v1.ProviderAWS)
 	if err != nil {
 		log.Fatalf("failed to create handler: %v", err)
 	}

@@ -1,16 +1,32 @@
-package handlers
+package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jordanharrington/bsync/api/v1"
+	v1 "github.com/jordanharrington/bsync/api/v1"
 	"github.com/jordanharrington/bsync/internal/presign"
 	"net/http"
 	"time"
 )
 
+type handler struct {
+	Signers presign.Registry
+}
+
+func NewHandler(ctx context.Context, provider v1.Provider) (Handler, error) {
+	presignRegistry, err := presign.NewRegistry(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+
+	return &handler{
+		Signers: presignRegistry,
+	}, nil
+}
+
 // HandlePutObject POST /v1/presign/put
-func (h *Handler) HandlePutObject(w http.ResponseWriter, r *http.Request) {
+func (h *handler) HandlePutObject(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var in v1.PutObjectRequest
@@ -53,7 +69,7 @@ func (h *Handler) HandlePutObject(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-var validator = struct {
+var pv = struct {
 	minPresignTTL       time.Duration
 	maxPresignTTL       time.Duration
 	maxMetadataKeys     int
@@ -74,12 +90,12 @@ var validator = struct {
 }
 
 func validatePutRequest(in v1.PutObjectRequest) error {
-	if in.ContentType == "" || !validator.allowedContentTypes[in.ContentType] {
+	if in.ContentType == "" || !pv.allowedContentTypes[in.ContentType] {
 		return fmt.Errorf("unsupported content type %s", in.ContentType)
 	}
 
-	if len(in.Metadata) > validator.maxMetadataKeys {
-		return fmt.Errorf("too many metadata entries (max %d)", validator.maxMetadataKeys)
+	if len(in.Metadata) > pv.maxMetadataKeys {
+		return fmt.Errorf("too many metadata entries (max %d)", pv.maxMetadataKeys)
 	}
 
 	total := 0
@@ -92,16 +108,16 @@ func validatePutRequest(in v1.PutObjectRequest) error {
 		}
 		total += len(k) + len(v)
 	}
-	if total > validator.maxMetadataSize {
-		return fmt.Errorf("metadata with %d entries exceeds max size of %d", total, validator.maxMetadataSize)
+	if total > pv.maxMetadataSize {
+		return fmt.Errorf("metadata with %d entries exceeds max size of %d", total, pv.maxMetadataSize)
 	}
 
 	d := time.Duration(in.ExpiresMillis) * time.Millisecond
-	if d < validator.minPresignTTL {
-		return fmt.Errorf("expires_ms too small (min %d ms)", validator.minPresignTTL.Milliseconds())
+	if d < pv.minPresignTTL {
+		return fmt.Errorf("expires_ms too small (min %d ms)", pv.minPresignTTL.Milliseconds())
 	}
-	if d > validator.maxPresignTTL {
-		return fmt.Errorf("expires_ms too large (max %d ms)", validator.maxPresignTTL.Milliseconds())
+	if d > pv.maxPresignTTL {
+		return fmt.Errorf("expires_ms too large (max %d ms)", pv.maxPresignTTL.Milliseconds())
 	}
 
 	for _, s := range in.ReplicationTargets {

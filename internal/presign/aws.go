@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	v1 "github.com/jordanharrington/bsync/api/v1"
-	"time"
 )
 
 type awsPresigner struct {
@@ -44,41 +43,6 @@ func (p *awsPresigner) PresignPut(ctx context.Context, bucket, key string, opts 
 	}
 
 	flat := map[string]string{}
-	for k, vals := range out.SignedHeader {
-		if len(vals) > 0 {
-			flat[k] = vals[0]
-		}
-	}
-
-	return &v1.PresignedUrl{
-		TargetRef: v1.TargetRef{
-			Provider: v1.ProviderAWS,
-			Bucket:   bucket,
-			Key:      key,
-		},
-		URL:     out.URL,
-		Headers: flat,
-	}, nil
-}
-
-func (p *awsPresigner) PresignGet(ctx context.Context, bucket, key string, expires time.Duration) (*v1.PresignedUrl, error) {
-	if expires <= 0 {
-		expires = 15 * time.Minute
-	}
-
-	in := &s3.GetObjectInput{
-		Bucket: &bucket,
-		Key:    &key,
-	}
-
-	out, err := p.signer.PresignGetObject(ctx, in, func(po *s3.PresignOptions) {
-		po.Expires = expires
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	flat := make(map[string]string, len(out.SignedHeader))
 	for k, vals := range out.SignedHeader {
 		if len(vals) > 0 {
 			flat[k] = vals[0]

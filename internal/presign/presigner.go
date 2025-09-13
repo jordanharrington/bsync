@@ -46,7 +46,6 @@ func WithTTL(d time.Duration) PutOption {
 
 type Presigner interface {
 	PresignPut(ctx context.Context, bucket, key string, opts PutOptions) (*v1.PresignedUrl, error)
-	PresignGet(ctx context.Context, bucket, key string, expires time.Duration) (*v1.PresignedUrl, error)
 }
 
 type Registry map[v1.Provider]Presigner
