@@ -155,7 +155,7 @@ func NewRouter(ctx context.Context, provider v1.Provider) (*mux.Router, error) {
 	}
 
 	h := handler{signers: presignRegistry}
-	m := mux.NewRouter().StrictSlash(true).PathPrefix("/v1").Subrouter()
+	m := mux.NewRouter().StrictSlash(true).PathPrefix("/v1/presign").Subrouter()
 	m.HandleFunc("/put", h.handlePutObject).Methods(http.MethodPost)
 
 	return m, nil
