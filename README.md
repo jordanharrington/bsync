@@ -10,14 +10,15 @@ with consistent security and validation.
 
 ### v1 Roadmap
 
-**Phase 1: AWS PUT (MVP) — *In Progress***
+**Phase 1: AWS PUT (MVP)**
 
 - Implement `/v1/presign/put` endpoint.
 - Support AWS S3 presigner via Lambda entrypoint.
 
-**Phase 2: AWS GET + DELETE**
+**Phase 2: AWS GET + DELETE — *In Progress***
 
 - Extend AWS integration with `/v1/presign/get` and `/v1/presign/delete`.
+- Add integration testing for PUT, GET, DELETE
 
 **Phase 3: Azure Presigner**
 
@@ -34,16 +35,6 @@ with consistent security and validation.
 **Phase 6: GCP Entrypoint**
 
 - Deploy GCP presigner via Cloud Functions or equivalent.
-
----
-
-## Current State & Next Steps
-
-- ✅ **Lambda Infrastructure**: provisioned via Terraform.
-- ✅ **ECR Image**: Lambda binary built and published as a container image.
-- ✅ **Unit Testing**: handler logic and S3 presigner covered with mocks.
-- 🔜 **Integration Tests**: presign PUT -> upload flow for S3.
-- 🔜 **API Gateway Setup**: expose Lambda endpoint externally.
 
 ---
 
