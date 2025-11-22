@@ -6,13 +6,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/samber/lo"
-
 	v1 "github.com/jordanharrington/bsync/api/v1"
+	"github.com/samber/lo"
+	"net/http"
 )
 
 type s3PresignAPI interface {
 	PresignPutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
+	PresignDeleteObject(ctx context.Context, params *s3.DeleteObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
 }
 
 type s3Presigner struct {
@@ -56,11 +57,34 @@ func (p *s3Presigner) PresignPut(ctx context.Context, bucket, key string, opts P
 		return nil, err
 	}
 
-	flat := make(map[string]string, len(out.SignedHeader))
-	for k, vals := range out.SignedHeader {
-		if len(vals) > 0 {
-			flat[k] = vals[0]
-		}
+	return &v1.PresignedUrl{
+		TargetRef: v1.TargetRef{
+			Provider: v1.ProviderAWS,
+			Bucket:   bucket,
+			Key:      key,
+		},
+		URL:     out.URL,
+		Headers: flatten(out.SignedHeader),
+	}, nil
+}
+
+func (p *s3Presigner) PresignDelete(ctx context.Context, bucket, key string, opts DeleteOptions) (*v1.PresignedUrl, error) {
+	in := &s3.DeleteObjectInput{
+		Bucket: lo.ToPtr(bucket),
+		Key:    lo.ToPtr(key),
+	}
+
+	if opts.Version != "" {
+		in.VersionId = lo.ToPtr(opts.Version)
+	}
+
+	if opts.IfMatch != "" {
+		in.IfMatch = lo.ToPtr(opts.IfMatch)
+	}
+
+	out, err := p.signer.PresignDeleteObject(ctx, in, s3.WithPresignExpires(opts.TTL))
+	if err != nil {
+		return nil, err
 	}
 
 	return &v1.PresignedUrl{
@@ -70,6 +94,17 @@ func (p *s3Presigner) PresignPut(ctx context.Context, bucket, key string, opts P
 			Key:      key,
 		},
 		URL:     out.URL,
-		Headers: flat,
+		Headers: flatten(out.SignedHeader),
 	}, nil
+}
+
+func flatten(headers http.Header) map[string]string {
+	flat := make(map[string]string, len(headers))
+	for k, vals := range headers {
+		if len(vals) > 0 {
+			flat[k] = vals[0]
+		}
+	}
+
+	return flat
 }

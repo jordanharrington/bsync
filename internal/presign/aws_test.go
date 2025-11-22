@@ -34,6 +34,16 @@ func (m *mockS3PresignAPI) PresignPutObject(
 	return args.Get(0).(*v4.PresignedHTTPRequest), args.Error(1)
 }
 
+func (m *mockS3PresignAPI) PresignDeleteObject(
+	ctx context.Context,
+	in *s3.DeleteObjectInput,
+	optFns ...func(*s3.PresignOptions),
+) (*v4.PresignedHTTPRequest, error) {
+	args := m.Called(ctx, in, optFns)
+
+	return args.Get(0).(*v4.PresignedHTTPRequest), args.Error(1)
+}
+
 var _ = Describe("S3", func() {
 	var (
 		ctx context.Context
@@ -123,12 +133,12 @@ var _ = Describe("S3", func() {
 				Return(retResp, tc.mockErr).
 				Once()
 
-			opts := NewPutOptions(
-				WithContentType(tc.ct),
-				WithMetadata(tc.meta),
-				WithTTL(tc.ttl),
-				WithEncryption(tc.enc),
-			)
+			opts := PutOptions{
+				ContentType: tc.ct,
+				Metadata:    tc.meta,
+				TTL:         tc.ttl,
+				Encryption:  tc.enc,
+			}
 
 			u, err := ps.PresignPut(ctx, tc.bucket, tc.key, opts)
 

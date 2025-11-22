@@ -17,7 +17,9 @@ func main() {
 	}
 
 	adapter := gorillamux.New(r)
-	lambda.Start(func(ctx context.Context, req core.SwitchableAPIGatewayRequest) (interface{}, error) {
+	handler := func(ctx context.Context, req core.SwitchableAPIGatewayRequest) (interface{}, error) {
 		return adapter.ProxyWithContext(ctx, req)
-	})
+	}
+
+	lambda.Start(handler)
 }

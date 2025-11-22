@@ -1,11 +1,9 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gorilla/mux"
 	v1 "github.com/jordanharrington/bsync/api/v1"
 	"github.com/jordanharrington/bsync/internal/presign"
 	"net/http"
@@ -31,7 +29,12 @@ func (h *handler) handlePutObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ttl := time.Duration(in.ExpiresMillis) * time.Millisecond
+	opts := presign.PutOptions{
+		ContentType: in.ContentType,
+		Metadata:    in.Metadata,
+		TTL:         time.Duration(in.ExpiresMillis) * time.Millisecond,
+	}
+
 	urls := make([]v1.PresignedUrl, 0, len(in.ReplicationTargets))
 	for _, s := range in.ReplicationTargets {
 		presigner, ok := h.signers[s.Provider]
@@ -40,12 +43,7 @@ func (h *handler) handlePutObject(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		opts := presign.NewPutOptions(
-			presign.WithContentType(in.ContentType),
-			presign.WithMetadata(in.Metadata),
-			presign.WithTTL(ttl),
-			presign.WithEncryption(s.Encryption),
-		)
+		opts.Encryption = s.Encryption
 
 		url, err := presigner.PresignPut(ctx, s.Bucket, s.Key, opts)
 		if err != nil {
@@ -82,6 +80,7 @@ var pv = struct {
 	},
 }
 
+// validatePutRequest validates a v1.PutObjectRequest
 func validatePutRequest(in v1.PutObjectRequest) error {
 	if in.ContentType == "" || !pv.allowedContentTypes[in.ContentType] {
 		return fmt.Errorf("unsupported content type %s", in.ContentType)
@@ -148,15 +147,48 @@ func validatePutRequest(in v1.PutObjectRequest) error {
 	return nil
 }
 
-func NewRouter(ctx context.Context, provider v1.Provider) (*mux.Router, error) {
-	presignRegistry, err := presign.NewRegistry(ctx, provider)
-	if err != nil {
-		return nil, err
+// handleDeleteObject handles http.MethodPost to /v1/presign/delete
+func (h *handler) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var in v1.PutObjectRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, fmt.Sprintf("failed to decode request: %v", err), http.StatusBadRequest)
+		return
 	}
 
-	h := handler{signers: presignRegistry}
-	m := mux.NewRouter().StrictSlash(true).PathPrefix("/v1/presign").Subrouter()
-	m.HandleFunc("/put", h.handlePutObject).Methods(http.MethodPost)
+	if err := validatePutRequest(in); err != nil {
+		http.Error(w, fmt.Sprintf("failed to validate request: %v", err), http.StatusBadRequest)
+		return
+	}
 
-	return m, nil
+	opts := presign.PutOptions{
+		ContentType: in.ContentType,
+		Metadata:    in.Metadata,
+		TTL:         time.Duration(in.ExpiresMillis) * time.Millisecond,
+	}
+
+	urls := make([]v1.PresignedUrl, 0, len(in.ReplicationTargets))
+	for _, s := range in.ReplicationTargets {
+		presigner, ok := h.signers[s.Provider]
+		if !ok {
+			http.Error(w, fmt.Sprintf("provider not configured: %s", s.Provider), http.StatusBadRequest)
+			return
+		}
+
+		opts.Encryption = s.Encryption
+
+		url, err := presigner.PresignPut(ctx, s.Bucket, s.Key, opts)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("presign failed for %s: %v", s.Provider, err), http.StatusBadGateway)
+			return
+		}
+
+		urls = append(urls, *url)
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(v1.PutObjectResponse{
+		Targets: urls,
+	})
 }
